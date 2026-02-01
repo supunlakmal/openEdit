@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Open Edit - Ecosystem</title>
+  <meta name="description"
+    content="Central hub for Hash Ecosystem applications. Privacy-first, serverless tools that live in your URL.">
+  <meta name="theme-color" content="#f8f9fa" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0f1115" media="(prefers-color-scheme: dark)">
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+  <div class="app">
+    <!-- Navigation -->
+    <header class="topbar glass">
+      <div class="max-width-container topbar-content">
+        <a href="#" class="brand">
+          <div class="brand-mark">#</div>
+          <div class="brand-text">Open Edit</div>
+        </a>
+
+        <div class="nav-actions" style="display: flex; gap: 12px; align-items: center;">
+          <button id="theme-toggle" type="button" class="icon-btn" aria-label="Toggle Theme">
+            <i class="fa-solid fa-moon"></i>
+          </button>
+
+          <div class="app-launcher-container">
+            <button id="app-launcher-btn" type="button" class="icon-btn" aria-label="Open Edit Apps"
+              aria-expanded="false">
+              <i class="fa-solid fa-grip"></i>
+            </button>
+            <div id="app-launcher-menu" class="app-launcher-menu hidden">
+              <!-- Content injected by JS -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <!-- Hero Section -->
+      <section class="hero">
+        <div class="max-width-container hero-content">
+          <div class="hero-label">The Privacy-First Ecosystem</div>
+          <h1 class="hero-title">Your Data.<br>Your URL.</h1>
+          <p class="hero-subtitle">
+            A suite of powerful, serverless tools that run entirely in your browser.
+            No accounts, no tracking, just instant utility.
+          </p>
+        </div>
+      </section>
+
+      <!-- Apps Grid -->
+      <section class="apps-section">
+        <div class="max-width-container">
+          <div class="section-header">
+            <h2 class="section-title">Explore Apps</h2>
+            <p style="color: var(--text-secondary);">Tap to launch instantly.</p>
+          </div>
+
+          <div class="apps-grid">
+            <!-- Calendar -->
+            <a href="https://hash-calendar.netlify.app/" class="app-card glass" target="_blank">
+              <div class="app-card-icon">
+                <i class="fa-solid fa-calendar-days"></i>
+              </div>
+              <div class="app-card-content">
+                <h3 class="app-card-title">Calendar</h3>
+                <p class="app-card-desc">
+                  A private, sharable calendar that saves all your events directly in the URL hash.
+                </p>
+                <div class="app-card-link">
+                  Launch App <i class="fa-solid fa-arrow-right"></i>
+                </div>
+              </div>
+            </a>
+
+            <!-- Spreadsheet -->
+            <a href="https://spreadsheetlive.netlify.app/" class="app-card glass spreadsheet" target="_blank">
+              <div class="app-card-icon">
+                <i class="fa-solid fa-table-cells"></i>
+              </div>
+              <div class="app-card-content">
+                <h3 class="app-card-title">Spreadsheet</h3>
+                <p class="app-card-desc">
+                  Collaborative, real-time spreadsheet. Edit with friends via P2P connection.
+                </p>
+                <div class="app-card-link">
+                  Launch App <i class="fa-solid fa-arrow-right"></i>
+                </div>
+              </div>
+            </a>
+
+            <!-- Word -->
+            <a href="/word/index.html" class="app-card glass word" target="_blank">
+              <div class="app-card-icon">
+                <i class="fa-solid fa-file-lines"></i>
+              </div>
+              <div class="app-card-content">
+                <h3 class="app-card-title">Word</h3>
+                <p class="app-card-desc">
+                  Distraction-free text editor. Write, format, and save directly to your URL.
+                </p>
+                <div class="app-card-link">
+                  Launch App <i class="fa-solid fa-arrow-right"></i>
+                </div>
+              </div>
+            </a>
+
+            <!-- Kanban -->
+            <a href="/kanban/index.html" class="app-card glass kanban" target="_blank">
+              <div class="app-card-icon">
+                <i class="fa-solid fa-layer-group"></i>
+              </div>
+              <div class="app-card-content">
+                <h3 class="app-card-title">Kanban</h3>
+                <p class="app-card-desc">
+                  Visual project management. Sort tasks with drag and drop columns.
+                </p>
+                <div class="app-card-link">
+                  Launch App <i class="fa-solid fa-arrow-right"></i>
+                </div>
+              </div>
+            </a>
+
+            <!-- Code -->
+            <a href="/code/index.html" class="app-card glass code" target="_blank">
+              <div class="app-card-icon">
+                <i class="fa-solid fa-code"></i>
+              </div>
+              <div class="app-card-content">
+                <h3 class="app-card-title">Code</h3>
+                <p class="app-card-desc">
+                  Syntax-highlighted snippet editor. Share code properly with a simple link.
+                </p>
+                <div class="app-card-link">
+                  Launch App <i class="fa-solid fa-arrow-right"></i>
+                </div>
+              </div>
+            </a>
+
+            <!-- Whiteboard -->
+            <a href="/whiteboard/index.html" class="app-card glass whiteboard" target="_blank">
+              <div class="app-card-icon">
+                <i class="fa-solid fa-pen-nib"></i>
+              </div>
+              <div class="app-card-content">
+                <h3 class="app-card-title">Whiteboard</h3>
+                <p class="app-card-desc">
+                  Infinite canvas for sketches and diagrams. Visualize ideas instantly.
+                </p>
+                <div class="app-card-link">
+                  Launch App <i class="fa-solid fa-arrow-right"></i>
+                </div>
+              </div>
+            </a>
+
+            <!-- Notes -->
+            <a href="/notes/index.html" class="app-card glass notes" target="_blank">
+              <div class="app-card-icon">
+                <i class="fa-solid fa-note-sticky"></i>
+              </div>
+              <div class="app-card-content">
+                <h3 class="app-card-title">Notes</h3>
+                <p class="app-card-desc">
+                  Sticky notes for quick thoughts. Color-coded, auto-saved, and searchable.
+                </p>
+                <div class="app-card-link">
+                  Launch App <i class="fa-solid fa-arrow-right"></i>
+                </div>
+              </div>
+            </a>
+
+            <!-- PDF Tools -->
+            <a href="/pdf/index.html" class="app-card glass pdf" target="_blank">
+              <div class="app-card-icon">
+                <i class="fa-solid fa-file-pdf"></i>
+              </div>
+              <div class="app-card-content">
+                <h3 class="app-card-title">PDF Tools</h3>
+                <p class="app-card-desc">
+                  Merge and modify PDFs locally. Privacy-first, no server uploads.
+                </p>
+                <div class="app-card-link">
+                  Launch App <i class="fa-solid fa-arrow-right"></i>
+                </div>
+              </div>
+            </a>
+
+            <!-- Focus -->
+            <a href="/focus/index.html" class="app-card glass focus" target="_blank">
+              <div class="app-card-icon">
+                <i class="fa-solid fa-clock"></i>
+              </div>
+              <div class="app-card-content">
+                <h3 class="app-card-title">Focus</h3>
+                <p class="app-card-desc">
+                  Stay productive with a distraction-free Pomodoro timer and task list.
+                </p>
+                <div class="app-card-link">
+                  Launch App <i class="fa-solid fa-arrow-right"></i>
+                </div>
+              </div>
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <!-- Features / Values -->
+      <section class="features-section">
+        <div class="max-width-container">
+          <div class="features-grid">
+            <div class="feature-item">
+              <div class="feature-icon">
+                <i class="fa-solid fa-shield-halved"></i>
+              </div>
+              <h3 class="feature-title">Privacy First</h3>
+              <p class="feature-desc">No databases. Your data lives in your URL or local storage.</p>
+            </div>
+            <div class="feature-item">
+              <div class="feature-icon">
+                <i class="fa-solid fa-bolt"></i>
+              </div>
+              <h3 class="feature-title">Instant Load</h3>
+              <p class="feature-desc">Lightweight and fast. No loading screens or sign-ups required.</p>
+            </div>
+            <div class="feature-item">
+              <div class="feature-icon">
+                <i class="fa-brands fa-github"></i>
+              </div>
+              <h3 class="feature-title">Open Source</h3>
+              <p class="feature-desc"> Transparent code built for the community. Free forever.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <div class="max-width-container">
+        <div class="footer-links">
+          <a href="https://github.com/supunlakmal/hash" target="_blank"><i class="fa-brands fa-github"></i> GitHub</a>
+          <a href="#">Privacy</a>
+          <a href="#">About</a>
+        </div>
+        <p>&copy; 2026 Open Edit Ecosystem</p>
+      </div>
+    </footer>
+  </div>
+
+  <!-- Scripts -->
+  <script type="module">
+    import { AppLauncher } from './modules/app_launcher.js';
+
+    // Initialize App Launcher
+    document.addEventListener('DOMContentLoaded', () => {
+      new AppLauncher();
+
+      // Theme Manager
+      const themeBtn = document.getElementById('theme-toggle');
+      const icon = themeBtn.querySelector('i');
+
+      // Check for saved theme or system preference
+      const savedTheme = localStorage.getItem('theme');
+      const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+      if (savedTheme === 'dark' || (!savedTheme && systemDark)) {
+        document.body.setAttribute('data-theme', 'dark');
+        icon.classList.replace('fa-moon', 'fa-sun');
+      }
+
+      themeBtn.addEventListener('click', () => {
+        const isDark = document.body.getAttribute('data-theme') === 'dark';
+
+        if (isDark) {
+          document.body.removeAttribute('data-theme');
+          localStorage.setItem('theme', 'light');
+          icon.classList.replace('fa-sun', 'fa-moon');
+        } else {
+          document.body.setAttribute('data-theme', 'dark');
+          localStorage.setItem('theme', 'dark');
+          icon.classList.replace('fa-moon', 'fa-sun;
+ }
+      });
+    });
+  </script>
+</body>
+
+</html>
