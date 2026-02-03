@@ -1,0 +1,14 @@
+[
+  {
+    "name": "Calendar",
+    "url": "https://hash-calendar.netlify.app/",
+    "icon": "fa-solid fa-calendar-days",
+    "color": "#1a73e8"
+  },
+  {
+    "name": "Spreadsheet",
+    "url": "https://spreadsheetlive.netlify.app/",
+    "icon": "fa-solid fa-table-cells",
+    "color": "#107c41"
+  }
+]

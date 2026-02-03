@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Open Edit - Apps</title>
+  <meta name="description" content="Open Edit apps page powered by JSON data.">
+  <meta name="theme-color" content="#f8f9fa" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0f1115" media="(prefers-color-scheme: dark)">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+  <link rel="stylesheet" href="styles.css">
+
+  <style>
+    /* Keep index.html look, with small iframe-safe spacing overrides */
+    html,
+    body {
+      min-height: 100%;
+      margin: 0;
+    }
+
+    .apps-only .hero {
+      padding: clamp(56px, 12vw, 120px) 0 clamp(28px, 8vw, 80px);
+    }
+
+    .apps-only .apps-section {
+      padding: 20px 0 64px;
+    }
+
+    .apps-only .apps-grid {
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
+      gap: 24px;
+    }
+
+    .launcher-status {
+      margin: 14px 0 0;
+      color: var(--text-secondary);
+      font-size: 0.95rem;
+    }
+  </style>
+</head>
+<body class="apps-only">
+  <div class="app">
+    <main>
+      <section class="hero">
+        <div class="max-width-container hero-content">
+          <div class="hero-label">The Privacy-First Ecosystem</div>
+          <h1 class="hero-title">Your Data.<br>Your URL.</h1>
+          <p class="hero-subtitle">
+            A suite of powerful, serverless tools that run entirely in your browser.
+            No accounts, no tracking, just instant utility.
+          </p>
+        </div>
+      </section>
+
+      <section class="apps-section">
+        <div class="max-width-container">
+          <div class="section-header">
+            <h2 class="section-title">Explore Apps</h2>
+            <p style="color: var(--text-secondary);">Tap to launch instantly.</p>
+          </div>
+
+          <div id="apps-grid" class="apps-grid"></div>
+          <p id="launcher-status" class="launcher-status" aria-live="polite">Loading apps...</p>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script type="module">
+    const appsGrid = document.getElementById('apps-grid');
+    const status = document.getElementById('launcher-status');
+
+    const fallbackDescriptions = {
+      Calendar: 'A private, sharable calendar that saves all your events directly in the URL hash.',
+      Spreadsheet: 'Collaborative, real-time spreadsheet. Edit with friends via P2P connection.',
+      Word: 'Distraction-free text editor. Write, format, and save directly to your URL.',
+      Kanban: 'Visual project management. Sort tasks with drag and drop columns.',
+      Code: 'Syntax-highlighted snippet editor. Share code properly with a simple link.',
+      Whiteboard: 'Infinite canvas for sketches and diagrams. Visualize ideas instantly.',
+      Notes: 'Sticky notes for quick thoughts. Color-coded, auto-saved, and searchable.',
+      'PDF Tools': 'Merge and modify PDFs locally. Privacy-first, no server uploads.',
+      Focus: 'Stay productive with a distraction-free Pomodoro timer and task list.'
+    };
+
+    function setStatus(message) {
+      status.textContent = message;
+      status.hidden = message.length === 0;
+    }
+
+    function createCard(app) {
+      const card = document.createElement('a');
+      const extraClass = typeof app.className === 'string' ? ` ${app.className}` : '';
+      card.className = `app-card glass${extraClass}`;
+      card.href = app.url;
+      card.target = '_blank';
+      card.rel = 'noopener noreferrer';
+
+      const iconWrap = document.createElement('div');
+      iconWrap.className = 'app-card-icon';
+
+      const icon = document.createElement('i');
+      icon.className = app.icon;
+      iconWrap.appendChild(icon);
+
+      const content = document.createElement('div');
+      content.className = 'app-card-content';
+
+      const title = document.createElement('h3');
+      title.className = 'app-card-title';
+      title.textContent = app.name;
+
+      const desc = document.createElement('p');
+      desc.className = 'app-card-desc';
+      desc.textContent = app.description || fallbackDescriptions[app.name] || 'Launch this app.';
+
+      const link = document.createElement('div');
+      link.className = 'app-card-link';
+      link.innerHTML = 'Launch App <i class="fa-solid fa-arrow-right"></i>';
+
+      content.appendChild(title);
+      content.appendChild(desc);
+      content.appendChild(link);
+      card.appendChild(iconWrap);
+      card.appendChild(content);
+      return card;
+    }
+
+    async function loadApps() {
+      try {
+        const response = await fetch('./apps.json', { cache: 'no-store' });
+        if (!response.ok) {
+          throw new Error(`Failed with status ${response.status}`);
+        }
+
+        const apps = await response.json();
+        if (!Array.isArray(apps)) {
+          throw new Error('apps.json must be an array');
+        }
+
+        const fragment = document.createDocumentFragment();
+        apps.forEach((app) => {
+          if (app?.name && app?.url && app?.icon) {
+            fragment.appendChild(createCard(app));
+          }
+        });
+
+        appsGrid.innerHTML = '';
+        appsGrid.appendChild(fragment);
+        setStatus('');
+      } catch (error) {
+        console.error('Unable to load apps.json', error);
+        setStatus('Could not load app data.');
+      }
+    }
+
+    loadApps();
+  </script>
+</body>
+</html>
