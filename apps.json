@@ -18,9 +18,9 @@
   {
     "name": "PDF",
     "url": "/pdf",
-    "icon": "fa-solid fa-pdf",
-    "color": "#107c41",
+    "icon": "fa-solid fa-file-pdf",
+    "color": "#ee2b2b",
     "category": "Productivity",
-    "tagline": "Collaborative sheets without a server."
+    "tagline": "Simple local PDF tools."
   }
 ]
