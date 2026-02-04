@@ -1,0 +1,303 @@
+import { mergePDFPages, splitPDF } from './modules/pdf_ops.js';
+import { updateFileList, getFiles, clearFiles, getMergeSelection, setLoadingState, setUIMode } from './modules/ui.js';
+
+document.addEventListener('DOMContentLoaded', () => {
+    if (window.pdfjsLib) {
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+    
+    // --- UI Elements ---
+    const dropzone = document.getElementById('dropzone');
+    const dropzoneTitle = document.getElementById('dropzone-title');
+    const dropzoneSubtitle = document.getElementById('dropzone-subtitle');
+    const fileInput = document.getElementById('file-input');
+    const processBtn = document.getElementById('process-btn');
+    const clearBtn = document.getElementById('clear-all-btn');
+    const themeBtn = document.getElementById('theme-toggle');
+    const currentToolTitle = document.getElementById('current-tool-title');
+    const currentToolDesc = document.getElementById('current-tool-desc');
+    const splitOptions = document.getElementById('split-options');
+    const splitRangesInput = document.getElementById('split-ranges-input');
+    const toolButtons = Array.from(document.querySelectorAll('.tool-btn[data-tool]'));
+    const splitDownloadModal = document.getElementById('split-download-modal');
+    const splitZipBtn = document.getElementById('split-zip-btn');
+    const splitAllBtn = document.getElementById('split-all-btn');
+    const splitCancelBtn = document.getElementById('split-cancel-btn');
+
+    const toolConfig = {
+        merge: {
+            title: 'Merge PDFs',
+            description: 'Combine multiple PDF files into one.',
+            dropzoneTitle: 'Drop PDFs here',
+            dropzoneSubtitle: 'or click to select files',
+            processLabel: '<i class="fa-solid fa-gear"></i> Merge Files',
+            multiple: true,
+            showSplitOptions: false
+        },
+        split: {
+            title: 'Split PDF',
+            description: 'Split one PDF into separate files by ranges.',
+            dropzoneTitle: 'Drop one PDF here',
+            dropzoneSubtitle: 'or click to select a file',
+            processLabel: '<i class="fa-solid fa-gear"></i> Split File',
+            multiple: false,
+            showSplitOptions: true
+        }
+    };
+
+    let currentTool = 'merge';
+    let splitDownloadResolver = null;
+    let filesLoading = false;
+
+    const applyToolUI = () => {
+        const config = toolConfig[currentTool];
+        currentToolTitle.textContent = config.title;
+        currentToolDesc.textContent = config.description;
+        dropzoneTitle.textContent = config.dropzoneTitle;
+        dropzoneSubtitle.textContent = config.dropzoneSubtitle;
+        processBtn.innerHTML = config.processLabel;
+        fileInput.multiple = config.multiple;
+        splitOptions.classList.toggle('hidden', !config.showSplitOptions);
+    };
+    
+    const closeSplitDownloadModal = (choice = null) => {
+        if (splitDownloadResolver) {
+            splitDownloadResolver(choice);
+            splitDownloadResolver = null;
+        }
+        splitDownloadModal.classList.add('hidden');
+        document.body.classList.remove('modal-open');
+    };
+
+    const openSplitDownloadModal = () => {
+        if (splitDownloadResolver) {
+            splitDownloadResolver(null);
+            splitDownloadResolver = null;
+        }
+
+        splitDownloadModal.classList.remove('hidden');
+        document.body.classList.add('modal-open');
+        splitZipBtn.focus();
+
+        return new Promise((resolve) => {
+            splitDownloadResolver = resolve;
+        });
+    };
+
+    const downloadSplitAsZip = async (splitParts, sourceFileName) => {
+        if (typeof JSZip === 'undefined') {
+            throw new Error('ZIP library failed to load. Please refresh and try again.');
+        }
+
+        const zip = new JSZip();
+        splitParts.forEach((part) => {
+            zip.file(part.name, part.bytes);
+        });
+
+        const zipBlob = await zip.generateAsync({ type: 'blob' });
+        const baseName = sourceFileName.replace(/\.pdf$/i, '') || 'split_document';
+        saveAs(zipBlob, `${baseName}_split.zip`);
+    };
+
+    const downloadSplitIndividually = (splitParts) => {
+        splitParts.forEach((part, index) => {
+            const splitBlob = new Blob([part.bytes], { type: 'application/pdf' });
+            setTimeout(() => {
+                saveAs(splitBlob, part.name);
+            }, index * 150);
+        });
+    };
+
+    const setTool = (toolName) => {
+        if (!toolConfig[toolName] || toolName === currentTool) return;
+        if (filesLoading) {
+            alert('Please wait until files finish loading.');
+            return;
+        }
+
+        currentTool = toolName;
+        toolButtons.forEach((btn) => {
+            btn.classList.toggle('active', btn.dataset.tool === toolName);
+        });
+
+        closeSplitDownloadModal();
+        setUIMode(currentTool);
+        clearFiles();
+        splitRangesInput.value = '';
+        applyToolUI();
+    };
+
+    toolButtons.forEach((btn) => {
+        btn.addEventListener('click', () => setTool(btn.dataset.tool));
+    });
+
+    splitZipBtn.addEventListener('click', () => closeSplitDownloadModal('zip'));
+    splitAllBtn.addEventListener('click', () => closeSplitDownloadModal('all'));
+    splitCancelBtn.addEventListener('click', () => closeSplitDownloadModal());
+
+    splitDownloadModal.addEventListener('click', (event) => {
+        if (event.target === splitDownloadModal) {
+            closeSplitDownloadModal();
+        }
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && !splitDownloadModal.classList.contains('hidden')) {
+            closeSplitDownloadModal();
+        }
+    });
+
+    // --- Files Handling ---
+    const handleFiles = async (newFiles) => {
+        if (filesLoading) {
+            alert('Please wait until files finish loading.');
+            return;
+        }
+
+        // Validation: PDF only
+        const validFiles = Array.from(newFiles).filter(f => f.type === 'application/pdf');
+        
+        if (validFiles.length === 0) {
+             alert("Please upload valid PDF files.");
+             return;
+        }
+
+        filesLoading = true;
+        setLoadingState(true, currentTool === 'merge' ? 'Loading PDF pages...' : 'Loading PDF file...');
+
+        try {
+            if (currentTool === 'merge') {
+                await updateFileList(validFiles, ({ index, total, fileName }) => {
+                    setLoadingState(true, `Loading ${index + 1}/${total}: ${fileName}`);
+                });
+                return;
+            }
+
+            // Split mode: keep one source PDF.
+            clearFiles();
+            await updateFileList([validFiles[0]]);
+            if (validFiles.length > 1) {
+                alert('Split mode uses one source file. Using the first selected PDF.');
+            }
+        } finally {
+            filesLoading = false;
+            setLoadingState(false);
+        }
+    };
+
+    // Dropzone Events
+    dropzone.addEventListener('click', () => fileInput.click());
+    
+    dropzone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropzone.classList.add('drag-over');
+    });
+    
+    dropzone.addEventListener('dragleave', () => {
+        dropzone.classList.remove('drag-over');
+    });
+    
+    dropzone.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        dropzone.classList.remove('drag-over');
+        try {
+            await handleFiles(e.dataTransfer.files);
+        } catch (error) {
+            console.error(error);
+            alert(error.message || 'Failed to load PDF previews.');
+        }
+    });
+
+    fileInput.addEventListener('change', async (e) => {
+        try {
+            await handleFiles(e.target.files);
+        } catch (error) {
+            console.error(error);
+            alert(error.message || 'Failed to load PDF previews.');
+        }
+
+        // Reset input so same file selection works again
+        fileInput.value = '';
+    });
+
+    // --- Buttons ---
+    clearBtn.addEventListener('click', () => {
+        clearFiles();
+    });
+
+    processBtn.addEventListener('click', async () => {
+        const files = getFiles();
+        let splitDownloadMode = null;
+        const mergeSelection = getMergeSelection();
+
+        if (currentTool === 'merge' && mergeSelection.pages.length < 2) {
+            alert('Please attach PDFs with at least 2 pages total to merge.');
+            return;
+        }
+
+        if (currentTool === 'split' && files.length !== 1) {
+            alert('Please select one PDF file to split.');
+            return;
+        }
+
+        if (currentTool === 'split') {
+            splitDownloadMode = await openSplitDownloadModal();
+            if (!splitDownloadMode) {
+                return;
+            }
+        }
+
+        processBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing...';
+        processBtn.disabled = true;
+
+        try {
+            if (currentTool === 'merge') {
+                const mergedPdfBytes = await mergePDFPages(mergeSelection);
+                const mergedBlob = new Blob([mergedPdfBytes], { type: 'application/pdf' });
+                saveAs(mergedBlob, 'merged_document.pdf');
+            } else {
+                const splitParts = await splitPDF(files[0], splitRangesInput.value);
+                if (splitDownloadMode === 'zip') {
+                    await downloadSplitAsZip(splitParts, files[0].name);
+                    alert(`Created ZIP with ${splitParts.length} split file(s).`);
+                } else {
+                    downloadSplitIndividually(splitParts);
+                    alert(`Created ${splitParts.length} split file(s).`);
+                }
+            }
+            
+        } catch (error) {
+            console.error(error);
+            alert(error.message || 'An error occurred while processing the PDF.');
+        } finally {
+            processBtn.innerHTML = toolConfig[currentTool].processLabel;
+            processBtn.disabled = false;
+        }
+    });
+
+    // --- Theme Toggle ---
+    
+     themeBtn.addEventListener('click', () => {
+        const isDark = document.body.getAttribute('data-theme') === 'dark';
+        if (!isDark) {
+            document.body.setAttribute('data-theme', 'dark');
+            localStorage.setItem('theme', 'dark');
+            themeBtn.querySelector('i').className = 'fa-solid fa-sun';
+        } else {
+            document.body.removeAttribute('data-theme');
+            localStorage.setItem('theme', 'light');
+            themeBtn.querySelector('i').className = 'fa-solid fa-moon';
+        }
+    });
+
+    // Load saved theme
+    const savedTheme = localStorage.getItem('theme');
+    const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    if (savedTheme === 'dark' || (!savedTheme && systemDark)) {
+        document.body.setAttribute('data-theme', 'dark');
+        themeBtn.querySelector('i').className = 'fa-solid fa-sun';
+    }
+
+    setUIMode(currentTool);
+    applyToolUI();
+});
