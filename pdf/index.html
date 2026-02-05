@@ -2,10 +2,53 @@
 <html lang="en">
 
 <head>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-77V3TP2B5T"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag() { dataLayer.push(arguments); }
+        gtag('js', new Date());
+
+        // Security: Exclude URL hash from analytics to prevent leaking data
+        gtag('config', 'G-77V3TP2B5T', {
+            'page_location': window.location.origin + window.location.pathname,
+            'page_path': window.location.pathname
+        });
+    </script>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Open Edit PDF - Privacy-First Tools</title>
-    <meta name="description" content="Merge and modify PDFs in your browser. No server uploads.">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Open Edit PDF Tools - Free Merge &amp; Split PDFs in Browser</title>
+    <meta name="description"
+        content="Merge and split PDF files directly in your browser. Privacy-first PDF tools with no uploads and no server processing.">
+    <meta name="keywords" content="pdf merge, pdf split, merge pdf online, split pdf online, privacy first pdf tool">
+    <meta name="robots" content="index,follow">
+    <link rel="canonical" href="https://open-edit.netlify.app/pdf/">
+    <meta property="og:site_name" content="Open Edit">
+    <meta property="og:title" content="Open Edit PDF Tools - Free Merge &amp; Split PDFs in Browser">
+    <meta property="og:description"
+        content="Merge and split PDF files directly in your browser. Privacy-first PDF tools with no uploads and no server processing.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://open-edit.netlify.app/pdf/">
+    <meta property="og:image" content="https://open-edit.netlify.app/pdf/icons/icon-512.png">
+    <meta property="og:image:alt" content="Open Edit PDF Tools icon">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Open Edit PDF Tools - Free Merge &amp; Split PDFs in Browser">
+    <meta name="twitter:description"
+        content="Merge and split PDF files directly in your browser. Privacy-first PDF tools with no uploads and no server processing.">
+    <meta name="twitter:image" content="https://open-edit.netlify.app/pdf/icons/icon-512.png">
+    <meta name="twitter:image:alt" content="Open Edit PDF Tools icon">
+    <script type="application/ld+json">
+        {"@context":"https://schema.org","@type":"SoftwareApplication","name":"Open Edit PDF Tools","applicationCategory":"BusinessApplication","operatingSystem":"Web","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"url":"https://open-edit.netlify.app/pdf/","image":"https://open-edit.netlify.app/pdf/icons/icon-512.png","description":"Merge and split PDF files directly in your browser. Privacy-first PDF tools with no uploads and no server processing."}
+    </script>
+    <meta name="theme-color" content="#ee2b2b">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="PDF Tools">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="favicon.ico" sizes="any">
+    <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -62,8 +105,10 @@
 
                     <div class="dropzone" id="dropzone">
                         <i class="fa-solid fa-cloud-arrow-up icon"></i>
-                        <h3 id="dropzone-title">Drop PDF files here</h3>
-                        <p id="dropzone-subtitle">or click to browse</p>
+                        <div class="dropzone-text">
+                            <h3 id="dropzone-title">Drop PDF files here</h3>
+                            <p id="dropzone-subtitle">or click to browse</p>
+                        </div>
                         <input type="file" id="file-input" multiple accept="application/pdf" hidden>
                     </div>
 

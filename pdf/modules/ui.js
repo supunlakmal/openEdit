@@ -650,6 +650,7 @@ function render() {
         fileListEl.classList.add('hidden');
         actionBarEl.classList.add('hidden');
         dropzoneEl.style.display = 'flex';
+        dropzoneEl.classList.remove('compact');
         updateFooterVisibility();
         return;
     }
@@ -657,6 +658,7 @@ function render() {
     fileListEl.classList.remove('hidden');
     actionBarEl.classList.remove('hidden');
     dropzoneEl.style.display = 'flex';
+    dropzoneEl.classList.add('compact');
 
     if (currentMode === 'merge') {
         renderMergeView();

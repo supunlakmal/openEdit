@@ -166,36 +166,36 @@ body {
     overflow: auto;
     display: flex;
     justify-content: center;
-    padding: 20px;
+    padding: 16px 20px;
 }
 
 .work-area {
     width: 100%;
-    max-width: 800px;
+    max-width: 1000px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 20px;
-    padding-bottom: 40px;
+    gap: 16px;
+    padding-bottom: 24px;
 }
 
 .tool-header {
     text-align: center;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
 }
 
 .tool-header h2 {
-    font-size: 1.5rem;
-    margin-bottom: 8px;
+    font-size: 1.35rem;
+    margin-bottom: 6px;
     font-weight: 600;
 }
 
 .tool-header p {
     color: var(--text-secondary);
-    font-size: 0.95rem;
+    font-size: 0.9rem;
 }
 
-/* Dropzone styling */
+/* Dropzone styling - Default (Large) */
 .dropzone {
     width: 100%;
     background: var(--bg-secondary);
@@ -220,20 +220,54 @@ body {
     font-size: 48px;
     color: var(--text-muted);
     margin-bottom: 16px;
-    transition: color 0.3s;
+    transition: all 0.3s ease;
 }
 
 .dropzone:hover .icon {
     color: var(--accent-color);
 }
 
+.dropzone-text {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    transition: all 0.3s ease;
+}
+
 .dropzone h3 {
     margin-bottom: 8px;
     color: var(--text-primary);
+    transition: all 0.3s ease;
 }
 
 .dropzone p {
     color: var(--text-secondary);
+    transition: all 0.3s ease;
+}
+
+/* Compact dropzone - after files are uploaded */
+.dropzone.compact {
+    padding: 16px 20px;
+    flex-direction: row;
+    gap: 12px;
+}
+
+.dropzone.compact .icon {
+    font-size: 24px;
+    margin-bottom: 0;
+}
+
+.dropzone.compact .dropzone-text {
+    align-items: flex-start;
+}
+
+.dropzone.compact h3 {
+    margin-bottom: 2px;
+    font-size: 0.9rem;
+}
+
+.dropzone.compact p {
+    font-size: 0.8rem;
 }
 
 /* File List & Cards */
