@@ -117,3 +117,62 @@ export async function splitPDF(file, rangesInput = '') {
 
     return results;
 }
+
+export async function addTextToPDF(file, typeData) {
+    const { PDFDocument, rgb, StandardFonts } = PDFLib;
+    const arrayBuffer = await file.arrayBuffer();
+    const pdfDoc = await PDFDocument.load(arrayBuffer);
+    
+    // Embed standard fonts
+    const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const timesFont = await pdfDoc.embedFont(StandardFonts.TimesRoman);
+    const courierFont = await pdfDoc.embedFont(StandardFonts.Courier);
+
+    const pages = pdfDoc.getPages();
+    
+    for (const item of typeData.textObjects) {
+        const page = pages[item.pageIndex];
+        if (!page) continue;
+        
+        const { width, height } = page.getSize();
+        
+        // Scale factors
+        let scaleX = 1;
+        let scaleY = 1;
+
+        if (item.canvasWidth && item.canvasHeight) {
+             scaleX = width / item.canvasWidth;
+             scaleY = height / item.canvasHeight;
+        }
+        
+        const fontSize = (item.size || 12) * scaleX;
+        
+        // Font Selection
+        let font = helveticaFont;
+        if (item.font === 'Times-Roman') font = timesFont;
+        else if (item.font === 'Courier') font = courierFont;
+        
+        // Coordinate transformation
+        // HTML Canvas (Top-Left 0,0) -> PDF (Bottom-Left 0,0)
+        // PDF drawText (x, y) is the bottom-left corner of the first character (baseline)
+        // HTML click y is approximately the top of the text
+        const x = item.x * scaleX;
+        const y = height - (item.y * scaleY) - (fontSize * 0.75); // Shift down to match visual top-alignment
+
+        // Color handling (Hex to RGB 0-1)
+        const hex = item.color || '#000000';
+        const r = parseInt(hex.slice(1, 3), 16) / 255;
+        const g = parseInt(hex.slice(3, 5), 16) / 255;
+        const b = parseInt(hex.slice(5, 7), 16) / 255;
+
+        page.drawText(item.text, {
+            x,
+            y,
+            size: fontSize,
+            font: font,
+            color: rgb(r, g, b),
+        });
+    }
+
+    return pdfDoc.save();
+}

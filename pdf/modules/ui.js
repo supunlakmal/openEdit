@@ -2,6 +2,9 @@ let currentMode = 'merge';
 let currentFiles = [];
 let mergePages = [];
 let splitPages = [];
+let redactPages = [];
+let typePages = [];
+let currentTypeSettings = { size: 12, color: '#000000', font: 'Helvetica' };
 let dragPageIndex = null;
 let fileIdCounter = 0;
 
@@ -119,6 +122,12 @@ function closePdfPreviewModal() {
     if (!splitModalOpen) {
         document.body.classList.remove('modal-open');
     }
+    
+    // Refresh UI if in redact mode to show changes made in modal
+    if (currentMode === 'redact') {
+        render();
+        updateRedactCount();
+    }
 }
 
 function renderPreviewFromCache(file) {
@@ -219,7 +228,342 @@ async function openPdfPreviewModal(file, targetPageNumber = null) {
             labelEl.className = 'preview-page-label';
             labelEl.textContent = `Page ${pageNumber}`;
             pageEl.appendChild(labelEl);
-            pageEl.appendChild(canvas);
+
+            if (currentMode === 'redact') {
+                const container = document.createElement('div');
+                container.style.position = 'relative';
+                container.style.display = 'inline-block';
+                
+                container.appendChild(canvas);
+
+                const overlay = document.createElement('canvas');
+                overlay.className = 'redact-overlay-canvas';
+                overlay.style.position = 'absolute';
+                overlay.style.inset = '0';
+                overlay.style.touchAction = 'none';
+                // Cursor style
+                overlay.style.cursor = 'crosshair';
+                
+                overlay.width = canvas.width;
+                overlay.height = canvas.height;
+                
+                const redactPage = redactPages.find(p => p.fileId === file.id && p.pageNumber === pageNumber);
+                
+                if (redactPage) {
+                    const ctx = overlay.getContext('2d');
+                    
+                    const draw = () => {
+                        ctx.clearRect(0, 0, overlay.width, overlay.height);
+                        
+                        // Draw existing areas
+                        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+                        redactPage.areas.forEach(area => {
+                            // Scale from source canvas to this overlay
+                            let scaleX = 1, scaleY = 1;
+                            if (area.canvasWidth && area.canvasHeight) {
+                                scaleX = overlay.width / area.canvasWidth;
+                                scaleY = overlay.height / area.canvasHeight;
+                            }
+                            
+                            const x = area.x * scaleX;
+                            const y = area.y * scaleY;
+                            const w = area.width * scaleX;
+                            const h = area.height * scaleY;
+                            
+                            ctx.fillRect(x, y, w, h);
+                            
+                            // Draw X button
+                            const btnSize = 20;
+                            ctx.fillStyle = 'red';
+                            ctx.fillRect(x + w - btnSize, y, btnSize, btnSize);
+                            ctx.fillStyle = 'white';
+                            ctx.font = '16px Arial';
+                            ctx.fillText('×', x + w - 15, y + 16);
+                            ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+                        });
+                        
+                        // Draw current drag
+                        if (currentRect) {
+                            ctx.fillStyle = 'rgba(255, 0, 0, 0.3)';
+                            ctx.fillRect(currentRect.x, currentRect.y, currentRect.width, currentRect.height);
+                        }
+                    };
+                    
+                    let isDragging = false;
+                    let startPos = { x: 0, y: 0 };
+                    let currentRect = null;
+                    
+                    const getPos = (e) => {
+                        const rect = overlay.getBoundingClientRect();
+                        return {
+                            x: e.clientX - rect.left,
+                            y: e.clientY - rect.top
+                        };
+                    };
+                    
+                    overlay.addEventListener('mousedown', (e) => {
+                        const pos = getPos(e);
+                        
+                        // Check delete click
+                        // Need to check against SCALED coordinates
+                        const clickedIndex = redactPage.areas.findIndex(area => {
+                            let scaleX = 1, scaleY = 1;
+                            if (area.canvasWidth) scaleX = overlay.width / area.canvasWidth;
+                            if (area.canvasHeight) scaleY = overlay.height / area.canvasHeight;
+                            
+                            const x = area.x * scaleX;
+                            const y = area.y * scaleY;
+                            const w = area.width * scaleX;
+                            
+                            const btnSize = 20;
+                            return pos.x >= x + w - btnSize &&
+                                   pos.x <= x + w &&
+                                   pos.y >= y &&
+                                   pos.y <= y + btnSize;
+                        });
+
+                        if (clickedIndex !== -1) {
+                            redactPage.areas.splice(clickedIndex, 1);
+                            draw();
+                            return;
+                        }
+                        
+                        isDragging = true;
+                        startPos = pos;
+                        currentRect = { x: startPos.x, y: startPos.y, width: 0, height: 0 };
+                    });
+                    
+                    overlay.addEventListener('mousemove', (e) => {
+                        if (!isDragging) return;
+                        const pos = getPos(e);
+                        currentRect = {
+                            x: Math.min(startPos.x, pos.x),
+                            y: Math.min(startPos.y, pos.y),
+                            width: Math.abs(pos.x - startPos.x),
+                            height: Math.abs(pos.y - startPos.y)
+                        };
+                        draw();
+                    });
+                    
+                    overlay.addEventListener('mouseup', () => {
+                        if (!isDragging) return;
+                        isDragging = false;
+                        if (currentRect && currentRect.width > 5 && currentRect.height > 5) {
+                            // Add new area
+                            // We store it in THIS overlay's coordinate space
+                            redactPage.areas.push({
+                                ...currentRect,
+                                canvasWidth: overlay.width,
+                                canvasHeight: overlay.height
+                            });
+                        }
+                        currentRect = null;
+                        draw();
+                    });
+                    
+                    overlay.addEventListener('mouseleave', () => {
+                         if (isDragging) {
+                             isDragging = false;
+                             currentRect = null;
+                             draw();
+                         }
+                    });
+
+                    // Initial draw
+                    draw();
+                }
+                
+                container.appendChild(overlay);
+                pageEl.appendChild(container);
+
+            } else if (currentMode === 'type') {
+                 const container = document.createElement('div');
+                 container.style.position = 'relative';
+                 container.style.display = 'inline-block';
+                 
+                 container.appendChild(canvas);
+
+                 const overlay = document.createElement('div');
+                 overlay.className = 'text-overlay-layer';
+                 // We need to set explicit dimensions to match canvas so absolute positioning works
+                 overlay.style.width = canvas.width + 'px';
+                 overlay.style.height = canvas.height + 'px';
+
+                 const typePage = typePages.find(p => p.fileId === file.id && p.pageNumber === pageNumber);
+
+                 if (typePage) {
+                     // Function to create a text element DOM
+                     const createTextDOM = (item, index) => {
+                         const el = document.createElement('div');
+                         el.className = 'text-object';
+                         el.contentEditable = true;
+                         el.textContent = item.text || '\u200B';
+                         el.style.color = item.color;
+                         // Scale font size based on current view/canvas ratio if needed, but here we work in pixel space of this canvas
+                         // Note: We stored items relative to canvasWidth/Height when created
+                         // So we need to scale if the current canvas dimension differs from creation time? 
+                         // For simplicity, let's assume we update coords or use percentage or standard rendering.
+                         // Current approach: Items store absolute coords for THIS canvas size. 
+                         // But if we resize window? Preview re-renders. We should probably store relative coords or re-scale.
+                         // Let's implement scaling:
+                         
+                         let scaleX = 1, scaleY = 1;
+                         if (item.canvasWidth && item.canvasHeight) {
+                             scaleX = canvas.width / item.canvasWidth;
+                             scaleY = canvas.height / item.canvasHeight;
+                         }
+
+                         const fontSize = Math.max(8, item.size * scaleX);
+                         el.style.fontSize = `${fontSize}px`;
+                         
+                         // Font mapping
+                         let fontFamily = 'Arial, sans-serif';
+                         if (item.font === 'Times-Roman') fontFamily = '"Times New Roman", serif';
+                         else if (item.font === 'Courier') fontFamily = '"Courier New", monospace';
+                         
+                         el.style.fontFamily = fontFamily;
+                         el.style.left = `${item.x * scaleX}px`;
+                         el.style.top = `${item.y * scaleY}px`;
+                         
+                         // Dragging logic
+                         let isDragging = false;
+                         let offset = { x: 0, y: 0 };
+                         
+                         el.addEventListener('mousedown', (e) => {
+                             if (e.target !== el) return; // Don't drag if clicking children (like delete btn)
+                             isDragging = true;
+                             const rect = el.getBoundingClientRect();
+                             const parentRect = overlay.getBoundingClientRect();
+                             offset = {
+                                 x: e.clientX - rect.left,
+                                 y: e.clientY - rect.top
+                             };
+                             e.stopPropagation(); // Prevent creation of new text
+                         });
+                         
+                         document.addEventListener('mousemove', (e) => {
+                             if (!isDragging) return;
+                             const parentRect = overlay.getBoundingClientRect();
+                             const newX = e.clientX - parentRect.left - offset.x;
+                             const newY = e.clientY - parentRect.top - offset.y;
+                             
+                             el.style.left = `${newX}px`;
+                             el.style.top = `${newY}px`;
+                         });
+                         
+                         document.addEventListener('mouseup', () => {
+                             if (isDragging) {
+                                 isDragging = false;
+                                 // Update item position in data
+                                 // Store back in original scale relative to current canvas
+                                 // Or better: update base coords to match current canvas and update canvas reference
+                                 item.x = parseFloat(el.style.left) / scaleX;
+                                 item.y = parseFloat(el.style.top) / scaleY;
+                                 item.text = el.textContent; // Update text just in case
+                                 item.canvasWidth = canvas.width / scaleX; // Keep reference consistent?
+                                 item.canvasHeight = canvas.height / scaleY;
+                             }
+                         });
+
+                         // Editing listener
+                         el.addEventListener('blur', () => {
+                             // Get text excluding the delete button
+                             let textContent = '';
+                             for (let node of el.childNodes) {
+                                 if (node.nodeType === Node.TEXT_NODE) {
+                                     textContent += node.textContent;
+                                 } else if (node.nodeType === Node.ELEMENT_NODE && !node.classList.contains('text-object-delete')) {
+                                     textContent += node.textContent;
+                                 }
+                             }
+                             const safeText = textContent.replace(/\u200B/g, '');
+                             item.text = safeText;
+                             if (!item.text.trim()) {
+                                 typePage.items.splice(index, 1);
+                                 if (overlay.contains(el)) {
+                                     overlay.removeChild(el);
+                                 }
+                             }
+                         });
+                         
+                         // Focus listener - ensure zero-width space for empty fields
+                         el.addEventListener('focus', () => {
+                             if (el.innerText === '' || el.innerText === '\u200B') {
+                                 el.innerText = '\u200B';
+                                 // Move cursor to end
+                                 const range = document.createRange();
+                                 const sel = window.getSelection();
+                                 range.selectNodeContents(el);
+                                 range.collapse(false);
+                                 sel.removeAllRanges();
+                                 sel.addRange(range);
+                             }
+                         });
+                         
+                         // Delete button - simple red dot
+                         const delBtn = document.createElement('div');
+                         delBtn.className = 'text-object-delete';
+                         delBtn.contentEditable = false;
+                         delBtn.addEventListener('click', (e) => {
+                             e.stopPropagation();
+                             typePage.items.splice(index, 1);
+                             overlay.removeChild(el);
+                         });
+                         
+                         el.appendChild(delBtn);
+                         return el;
+                     };
+                     
+                     // Render existing items
+                     const renderItems = () => {
+                         overlay.innerHTML = '';
+                         typePage.items.forEach((item, idx) => {
+                             overlay.appendChild(createTextDOM(item, idx));
+                         });
+                     };
+                     renderItems();
+                     
+                     // Add new text on click
+                     overlay.addEventListener('click', (e) => {
+                         if (e.target !== overlay) return;
+                         
+                         const rect = overlay.getBoundingClientRect();
+                         const x = e.clientX - rect.left;
+                         const y = e.clientY - rect.top;
+                         
+                         const newItem = {
+                             x: x,
+                             y: y - (currentTypeSettings.size), // Adjust so click is baselineish
+                             text: '',
+                             color: currentTypeSettings.color,
+                             size: currentTypeSettings.size,
+                             font: currentTypeSettings.font,
+                             canvasWidth: canvas.width,
+                             canvasHeight: canvas.height
+                         };
+                         
+                         typePage.items.push(newItem);
+                         const el = createTextDOM(newItem, typePage.items.length - 1);
+                         overlay.appendChild(el);
+                         
+                         // Focus and select text
+                         setTimeout(() => {
+                             el.focus();
+                             const range = document.createRange();
+                             range.selectNodeContents(el);
+                             const sel = window.getSelection();
+                             sel.removeAllRanges();
+                             sel.addRange(range);
+                         }, 0);
+                     });
+                 }
+
+                 container.appendChild(overlay);
+                 pageEl.appendChild(container);
+            } else {
+                pageEl.appendChild(canvas);
+            }
+            
             pdfPreviewPagesEl.appendChild(pageEl);
 
             if (typeof page.cleanup === 'function') {
@@ -666,6 +1010,18 @@ function render() {
         return;
     }
 
+    if (currentMode === 'redact') {
+        renderRedactView();
+        updateFooterVisibility();
+        return;
+    }
+
+    if (currentMode === 'type') {
+        renderTypeView();
+        updateFooterVisibility();
+        return;
+    }
+
     renderSplitView();
     updateFooterVisibility();
 }
@@ -674,11 +1030,13 @@ function updateFooterVisibility() {
     if (!toolsFooterEl) return;
     
     const isSplitVisible = !document.getElementById('split-options')?.classList.contains('hidden');
+    const isRedactVisible = !document.getElementById('redact-options')?.classList.contains('hidden');
+    const isTypeVisible = !document.getElementById('type-options')?.classList.contains('hidden');
     const isMergeVisible = !document.getElementById('merge-options')?.classList.contains('hidden');
     const isActionVisible = !actionBarEl.classList.contains('hidden');
     
     // Show footer if either component is visible
-    toolsFooterEl.classList.toggle('hidden', !isSplitVisible && !isMergeVisible && !isActionVisible);
+    toolsFooterEl.classList.toggle('hidden', !isSplitVisible && !isMergeVisible && !isRedactVisible && !isTypeVisible && !isActionVisible);
 }
 
 export function setUIMode(mode) {
@@ -746,7 +1104,9 @@ export async function updateFileList(newFiles, onProgress) {
     
     // Clear and rebuild split pages for the NEW file (Split only supports one file effectively, 
     // but code structure allows array. We usually take first.)
+    // Clear and rebuild split/redact pages for the NEW file
     splitPages = [];
+    redactPages = [];
     if (currentFiles.length > 0) {
         const mainFile = currentFiles[0]; // Take the first one if multiple dropped
         if (currentFiles.length > 1) {
@@ -763,6 +1123,28 @@ export async function updateFileList(newFiles, onProgress) {
                 pageNumber: preview.pageNumber,
                 thumbnail: preview.thumbnail,
                 selected: false
+            });
+            
+            // Also init redact pages (same structure but with areas)
+            redactPages.push({
+                id: `${mainFile.id}-p${preview.pageNumber}-redact`,
+                fileId: mainFile.id,
+                fileName: mainFile.name,
+                pageIndex: preview.pageIndex,
+                pageNumber: preview.pageNumber,
+                thumbnail: preview.thumbnail,
+                areas: [] // Array of {x, y, width, height} in pixels relative to thumbnail
+            });
+
+            // Init type pages
+            typePages.push({
+                id: `${mainFile.id}-p${preview.pageNumber}-type`,
+                fileId: mainFile.id,
+                fileName: mainFile.name,
+                pageIndex: preview.pageIndex,
+                pageNumber: preview.pageNumber,
+                thumbnail: preview.thumbnail,
+                items: [] // Array of text objects {x, y, text, size, color}
             });
         });
     }
@@ -798,6 +1180,8 @@ export function clearFiles() {
     currentFiles = [];
     mergePages = [];
     splitPages = [];
+    redactPages = [];
+    typePages = [];
     dragPageIndex = null;
     closePdfPreviewModal();
     render();
@@ -813,7 +1197,349 @@ export function removeFile(index) {
         }
     } else if (currentMode === 'split') {
         splitPages = [];
+    } else if (currentMode === 'redact') {
+        redactPages = [];
+    } else if (currentMode === 'type') {
+        typePages = [];
     }
 
     render();
 }
+
+function updateRedactCount() {
+    const totalAreas = redactPages.reduce((acc, page) => acc + page.areas.length, 0);
+    const countEl = document.getElementById('redact-count');
+    if (countEl) {
+        countEl.textContent = `${totalAreas} area${totalAreas === 1 ? '' : 's'} selected`;
+    }
+}
+
+function createRedactPageCard(page, index) {
+    const cardEl = document.createElement('article');
+    cardEl.className = 'page-card page-card-redact';
+   
+    const container = document.createElement('div');
+    container.className = 'redact-container';
+    container.style.position = 'relative';
+    container.style.cursor = 'pointer';
+    
+    container.addEventListener('click', () => {
+        const file = currentFiles.find(f => f.id === page.fileId);
+        if (file) {
+            openPdfPreviewModal(file, page.pageNumber);
+        }
+    });
+    
+    // Base image
+    const img = document.createElement(page.thumbnail ? 'img' : 'div');
+    img.className = page.thumbnail ? 'page-thumb' : 'page-thumb page-thumb-placeholder';
+    img.draggable = false;
+    
+    if (page.thumbnail) {
+        img.src = page.thumbnail;
+        img.alt = `Page ${page.pageNumber}`;
+    } else {
+        img.textContent = `Page ${page.pageNumber}`;
+    }
+    
+    container.appendChild(img);
+    
+    // Canvas overlay
+    const canvas = document.createElement('canvas');
+    canvas.className = 'redact-canvas';
+    canvas.style.cursor = 'pointer';
+    
+    const draw = () => {
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+        page.areas.forEach(area => {
+            let scaleX = 1, scaleY = 1;
+            if (area.canvasWidth && area.canvasHeight) {
+                scaleX = canvas.width / area.canvasWidth;
+                scaleY = canvas.height / area.canvasHeight;
+            }
+            
+            ctx.fillRect(
+                area.x * scaleX, 
+                area.y * scaleY, 
+                area.width * scaleX, 
+                area.height * scaleY
+            );
+        });
+    };
+
+    if (page.thumbnail) {
+        const i = new Image();
+        i.onload = () => {
+            setTimeout(() => {
+               const rect = img.getBoundingClientRect();
+               const w = rect.width || 150;
+               const h = rect.height || 200;
+               
+               canvas.width = w;
+               canvas.height = h;
+               draw();
+            }, 100);
+        };
+        i.src = page.thumbnail;
+    } else {
+        canvas.width = 150;
+        canvas.height = 200;
+        draw();
+    }
+
+    container.appendChild(canvas);
+    cardEl.appendChild(container);
+    
+    const metaEl = document.createElement('div');
+    metaEl.className = 'page-meta';
+    
+    const labelEl = document.createElement('div');
+    labelEl.className = 'page-label';
+    labelEl.textContent = `Page ${page.pageNumber}`;
+    metaEl.appendChild(labelEl);
+    
+    cardEl.appendChild(metaEl);
+    return cardEl;
+}
+
+function renderRedactView() {
+    fileListEl.innerHTML = '';
+    
+    if (currentFiles.length > 0) {
+        const infoWrap = document.createElement('div');
+        infoWrap.className = 'split-file-info';
+        addFileEntryRow(currentFiles[0], 0, infoWrap);
+        fileListEl.appendChild(infoWrap);
+    }
+
+    if (redactPages.length > 0) {
+        const pageGridEl = document.createElement('div');
+        pageGridEl.className = 'page-grid';
+        redactPages.forEach((page, index) => {
+            pageGridEl.appendChild(createRedactPageCard(page, index));
+        });
+        fileListEl.appendChild(pageGridEl);
+        updateRedactCount();
+    }
+}
+
+function createTypePageCard(page, index) {
+    const cardEl = document.createElement('article');
+    cardEl.className = 'page-card page-card-type';
+   
+    const container = document.createElement('div');
+    container.className = 'type-container';
+    container.style.position = 'relative';
+    container.style.cursor = 'pointer';
+    
+    container.addEventListener('click', () => {
+        const file = currentFiles.find(f => f.id === page.fileId);
+        if (file) {
+            openPdfPreviewModal(file, page.pageNumber);
+        }
+    });
+    
+    // Base image
+    const img = document.createElement(page.thumbnail ? 'img' : 'div');
+    img.className = page.thumbnail ? 'page-thumb' : 'page-thumb page-thumb-placeholder';
+    img.draggable = false;
+    
+    if (page.thumbnail) {
+        img.src = page.thumbnail;
+        img.alt = `Page ${page.pageNumber}`;
+    } else {
+        img.textContent = `Page ${page.pageNumber}`;
+    }
+    
+    container.appendChild(img);
+    
+    // Canvas overlay for previewing text on thumbnail
+    const canvas = document.createElement('canvas');
+    canvas.className = 'type-canvas';
+    canvas.style.cursor = 'pointer';
+    
+    const draw = () => {
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        page.items.forEach(item => {
+            let scaleX = 1, scaleY = 1;
+            if (item.canvasWidth && item.canvasHeight) {
+                scaleX = canvas.width / item.canvasWidth;
+                scaleY = canvas.height / item.canvasHeight;
+            }
+            
+            ctx.fillStyle = item.color || '#000000';
+            // Scale font size proportionally
+            const fontSize = Math.max(8, (item.size || 12) * scaleX); 
+            
+            // Map font families
+            let fontFamily = 'Arial'; // Default/Helvetica
+            if (item.font === 'Times-Roman') fontFamily = 'Times New Roman';
+            else if (item.font === 'Courier') fontFamily = 'Courier New';
+            
+            ctx.font = `${fontSize}px "${fontFamily}"`;
+            
+            const x = item.x * scaleX;
+            const y = item.y * scaleY;
+            
+            // Adjust y because canvas text fills up from baseline, but our DOM overlay is top-left based
+            // Actually, let's keep it simple and assume standard baseline for now or adjust
+            ctx.fillText(item.text, x, y + fontSize); 
+        });
+    };
+
+    if (page.thumbnail) {
+        const i = new Image();
+        i.onload = () => {
+            setTimeout(() => {
+               const rect = img.getBoundingClientRect();
+               const w = rect.width || 150;
+               const h = rect.height || 200;
+               
+               canvas.width = w;
+               canvas.height = h;
+               draw();
+            }, 100);
+        };
+        i.src = page.thumbnail;
+    } else {
+        canvas.width = 150;
+        canvas.height = 200;
+        draw();
+    }
+
+    // Styles for canvas overlay on thumbnail
+    canvas.style.position = 'absolute';
+    canvas.style.inset = '0';
+    canvas.style.pointerEvents = 'none'; // Click goes through to container
+
+    container.appendChild(canvas);
+    cardEl.appendChild(container);
+    
+    const metaEl = document.createElement('div');
+    metaEl.className = 'page-meta';
+    
+    const labelEl = document.createElement('div');
+    labelEl.className = 'page-label';
+    labelEl.textContent = `Page ${page.pageNumber}`;
+    metaEl.appendChild(labelEl);
+    
+    cardEl.appendChild(metaEl);
+    return cardEl;
+}
+
+function renderTypeView() {
+    fileListEl.innerHTML = '';
+    
+    if (currentFiles.length > 0) {
+        const infoWrap = document.createElement('div');
+        infoWrap.className = 'split-file-info';
+        addFileEntryRow(currentFiles[0], 0, infoWrap);
+        fileListEl.appendChild(infoWrap);
+    }
+
+    if (typePages.length > 0) {
+        const pageGridEl = document.createElement('div');
+        pageGridEl.className = 'page-grid';
+        typePages.forEach((page, index) => {
+            pageGridEl.appendChild(createTypePageCard(page, index));
+        });
+        fileListEl.appendChild(pageGridEl);
+    }
+}
+
+export function getRedactionData() {
+    if (currentMode !== 'redact' || currentFiles.length === 0) {
+        return { bytes: null, areas: [] };
+    }
+    
+    const areas = [];
+    redactPages.forEach(page => {
+        page.areas.forEach(area => {
+            areas.push({
+                pageIndex: page.pageIndex,
+                rect: area, 
+                canvasWidth: area.canvasWidth,
+                canvasHeight: area.canvasHeight
+            });
+        });
+    });
+    
+    return {
+        bytes: currentFiles[0].bytes,
+        areas: areas
+    };
+}
+
+export function clearRedactionAreas() {
+    redactPages.forEach(p => p.areas = []);
+    updateRedactCount();
+    render();
+}
+
+export function getTypeData() {
+    if (currentMode !== 'type' || currentFiles.length === 0) {
+        return { bytes: null, textObjects: [] };
+    }
+    
+    const textObjects = [];
+    typePages.forEach(page => {
+        page.items.forEach(item => {
+            textObjects.push({
+                pageIndex: page.pageIndex,
+                ...item
+            });
+        });
+    });
+    
+    return {
+        bytes: currentFiles[0].bytes,
+        textObjects: textObjects
+    };
+}
+
+export function clearTypeData() {
+    typePages.forEach(p => p.items = []);
+    render();
+}
+
+function updateTypeSettings() {
+    const sizeInput = document.getElementById('type-text-size');
+    const colorInput = document.getElementById('type-text-color');
+    const fontInput = document.getElementById('type-text-font');
+    
+    if (sizeInput) currentTypeSettings.size = parseInt(sizeInput.value, 10) || 12;
+    if (colorInput) currentTypeSettings.color = colorInput.value || '#000000';
+    if (fontInput) currentTypeSettings.font = fontInput.value || 'Helvetica';
+}
+
+// Initialize listeners for type settings
+document.addEventListener('DOMContentLoaded', () => {
+    const sizeInput = document.getElementById('type-text-size');
+    const colorInput = document.getElementById('type-text-color');
+    const fontInput = document.getElementById('type-text-font');
+    const clearBtn = document.getElementById('type-clear-btn');
+    
+    if (sizeInput) {
+        sizeInput.addEventListener('change', updateTypeSettings);
+        sizeInput.addEventListener('input', updateTypeSettings);
+    }
+    if (colorInput) {
+        colorInput.addEventListener('change', updateTypeSettings);
+        colorInput.addEventListener('input', updateTypeSettings);
+    }
+    if (fontInput) {
+        fontInput.addEventListener('change', updateTypeSettings);
+    }
+    if (clearBtn) {
+        clearBtn.addEventListener('click', () => {
+             if (confirm('Clear all text from pages?')) {
+                 clearTypeData();
+             }
+        });
+    }
+});

@@ -78,6 +78,12 @@
                     <button id="tool-split" class="tool-btn" data-tool="split" title="Split PDF">
                         <i class="fa-solid fa-scissors"></i> Split
                     </button>
+                    <button id="tool-redact" class="tool-btn" data-tool="redact" title="Redact PDF">
+                        <i class="fa-solid fa-eraser"></i> Redact
+                    </button>
+                    <button id="tool-type" class="tool-btn" data-tool="type" title="Type on PDF">
+                        <i class="fa-solid fa-i-cursor"></i> Type
+                    </button>
                     <div class="toolbar-divider"></div>
                     <button id="theme-toggle" class="theme-toggle" title="Toggle dark/light mode">
                         <i class="fa-solid fa-sun icon-light"></i>
@@ -133,6 +139,35 @@
                             <label for="split-ranges-input"><i class="fa-solid fa-list-ol"></i> Page Ranges</label>
                             <input type="text" id="split-ranges-input" placeholder="e.g. 1-3, 5, 8-10">
                             <p class="hint-text">Leave blank to extract all pages as separate files.</p>
+                        </div>
+
+                        <div id="redact-options" class="redact-options hidden">
+                            <div class="redact-info">
+                                <i class="fa-solid fa-shield-halved"></i>
+                                <span id="redact-count">0 areas selected</span>
+                            </div>
+                            <p class="hint-text">Click and drag on pages to mark areas for redaction. Text is
+                                permanently removed.</p>
+                        </div>
+
+                        <div id="type-options" class="type-options hidden">
+                            <div class="type-controls">
+                                <label for="type-text-size">Size:</label>
+                                <input type="number" id="type-text-size" value="12" min="8" max="72">
+
+                                <label for="type-text-font">Font:</label>
+                                <select id="type-text-font">
+                                    <option value="Helvetica">Helvetica</option>
+                                    <option value="Times-Roman">Times Roman</option>
+                                    <option value="Courier">Courier</option>
+                                </select>
+
+                                <label for="type-text-color">Color:</label>
+                                <input type="color" id="type-text-color" value="#000000">
+
+                                <button id="type-clear-btn" class="ghost-btn">Clear All</button>
+                            </div>
+                            <p class="hint-text">Click anywhere on the page to type.</p>
                         </div>
 
                         <div class="action-bar hidden" id="action-bar">

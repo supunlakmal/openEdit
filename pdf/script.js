@@ -1,5 +1,6 @@
-import { mergePDFPages, splitPDF } from './modules/pdf_ops.js';
-import { updateFileList, getFiles, clearFiles, getMergeSelection, setLoadingState, setUIMode, updateSplitSelectionFromInput } from './modules/ui.js';
+import { mergePDFPages, splitPDF, addTextToPDF } from './modules/pdf_ops.js';
+import { applyRedactions } from './modules/redact.js';
+import { updateFileList, getFiles, clearFiles, getMergeSelection, getRedactionData, clearRedactionAreas, setLoadingState, setUIMode, updateSplitSelectionFromInput, getTypeData, clearTypeData } from './modules/ui.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     if (window.pdfjsLib) {
@@ -27,6 +28,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const mergeOptions = document.getElementById('merge-options');
     const mergeFilenameInput = document.getElementById('merge-filename');
     const toolButtons = Array.from(document.querySelectorAll('.tool-btn[data-tool]'));
+    const redactOptions = document.getElementById('redact-options');
+    const typeOptions = document.getElementById('type-options');
     const splitDownloadModal = document.getElementById('split-download-modal');
     const splitZipBtn = document.getElementById('split-zip-btn');
     const splitAllBtn = document.getElementById('split-all-btn');
@@ -41,7 +44,9 @@ document.addEventListener('DOMContentLoaded', () => {
             processLabel: '<i class="fa-solid fa-gear"></i> Merge Files',
             multiple: true,
             showSplitOptions: false,
-            showMergeOptions: true
+            showMergeOptions: true,
+            showRedactOptions: false,
+            showTypeOptions: false
         },
         split: {
             title: 'Split PDF',
@@ -51,7 +56,33 @@ document.addEventListener('DOMContentLoaded', () => {
             processLabel: '<i class="fa-solid fa-gear"></i> Split File',
             multiple: false,
             showSplitOptions: true,
-            showMergeOptions: false
+            showMergeOptions: false,
+            showRedactOptions: false,
+            showTypeOptions: false
+        },
+        redact: {
+            title: 'Redact PDF',
+            description: 'Permanently remove sensitive content from PDFs.',
+            dropzoneTitle: 'Drop one PDF here',
+            dropzoneSubtitle: 'or click to select a file',
+            processLabel: '<i class="fa-solid fa-shield-halved"></i> Apply Redactions',
+            multiple: false,
+            showSplitOptions: false,
+            showMergeOptions: false,
+            showRedactOptions: true,
+            showTypeOptions: false
+        },
+        type: {
+            title: 'Type on PDF',
+            description: 'Add text to your PDF documents.',
+            dropzoneTitle: 'Drop one PDF here',
+            dropzoneSubtitle: 'or click to select a file',
+            processLabel: '<i class="fa-solid fa-i-cursor"></i> Save PDF',
+            multiple: false,
+            showSplitOptions: false,
+            showMergeOptions: false,
+            showRedactOptions: false,
+            showTypeOptions: true
         }
     };
 
@@ -70,6 +101,12 @@ document.addEventListener('DOMContentLoaded', () => {
         splitOptions.classList.toggle('hidden', !config.showSplitOptions);
         if (mergeOptions) {
             mergeOptions.classList.toggle('hidden', !config.showMergeOptions);
+        }
+        if (redactOptions) {
+            redactOptions.classList.toggle('hidden', !config.showRedactOptions);
+        }
+        if (typeOptions) {
+            typeOptions.classList.toggle('hidden', !config.showTypeOptions);
         }
     };
     
@@ -190,11 +227,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            // Split mode: keep one source PDF.
+            // Split/Redact/Type mode: keep one source PDF.
             clearFiles();
             await updateFileList([validFiles[0]]);
             if (validFiles.length > 1) {
-                alert('Split mode uses one source file. Using the first selected PDF.');
+                alert(`${currentTool.charAt(0).toUpperCase() + currentTool.slice(1)} mode uses one source file. Using the first selected PDF.`);
             }
         } finally {
             filesLoading = false;
@@ -257,6 +294,14 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        if (currentTool === 'redact') {
+            const redactionData = getRedactionData();
+            if (redactionData.areas.length === 0) {
+                alert('Please select at least one area to redact. Click and drag on page thumbnails to mark areas.');
+                return;
+            }
+        }
+
         if (currentTool === 'split') {
             splitDownloadMode = await openSplitDownloadModal();
             if (!splitDownloadMode) {
@@ -273,6 +318,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 const mergedBlob = new Blob([mergedPdfBytes], { type: 'application/pdf' });
                 const filename = (mergeFilenameInput?.value.trim() || 'merged_document') + '.pdf';
                 saveAs(mergedBlob, filename);
+            } else if (currentTool === 'redact') {
+                const redactionData = getRedactionData();
+                const redactedPdfBytes = await applyRedactions(redactionData.bytes, redactionData.areas);
+                const redactedBlob = new Blob([redactedPdfBytes], { type: 'application/pdf' });
+                const baseName = files[0]?.name?.replace(/\.pdf$/i, '') || 'document';
+                saveAs(redactedBlob, `${baseName}_redacted.pdf`);
+                clearRedactionAreas();
+                alert('Redaction applied successfully. Sensitive content has been permanently removed.');
+            } else if (currentTool === 'type') {
+                const typeData = getTypeData();
+                const modifiedPdfBytes = await addTextToPDF(files[0], typeData);
+                const modifiedBlob = new Blob([modifiedPdfBytes], { type: 'application/pdf' });
+                const baseName = files[0]?.name?.replace(/\.pdf$/i, '') || 'document';
+                saveAs(modifiedBlob, `${baseName}_filled.pdf`);
+                // clearTypeData(); // Optional: keep data for more edits?
+                alert('PDF saved successfully with added text.');
             } else {
                 const splitParts = await splitPDF(files[0], splitRangesInput.value);
                 if (splitDownloadMode === 'zip') {
