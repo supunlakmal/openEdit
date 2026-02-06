@@ -151,23 +151,7 @@
                         </div>
 
                         <div id="type-options" class="type-options hidden">
-                            <div class="type-controls">
-                                <label for="type-text-size">Size:</label>
-                                <input type="number" id="type-text-size" value="12" min="8" max="72">
-
-                                <label for="type-text-font">Font:</label>
-                                <select id="type-text-font">
-                                    <option value="Helvetica">Helvetica</option>
-                                    <option value="Times-Roman">Times Roman</option>
-                                    <option value="Courier">Courier</option>
-                                </select>
-
-                                <label for="type-text-color">Color:</label>
-                                <input type="color" id="type-text-color" value="#000000">
-
-                                <button id="type-clear-btn" class="ghost-btn">Clear All</button>
-                            </div>
-                            <p class="hint-text">Click anywhere on the page to type.</p>
+                            <p class="hint-text">Click the preview to open the editor and add text.</p>
                         </div>
 
                         <div class="action-bar hidden" id="action-bar">
@@ -204,6 +188,18 @@
         <div class="preview-modal-card">
             <div class="preview-modal-header">
                 <h3 id="pdf-preview-title">PDF Preview</h3>
+                <div id="type-modal-toolbar" class="type-modal-toolbar hidden">
+                    <label>Size:</label>
+                    <input type="number" id="type-modal-size" value="12" min="8" max="72">
+                    <label>Font:</label>
+                    <select id="type-modal-font">
+                        <option value="Helvetica">Helvetica</option>
+                        <option value="Times-Roman">Times Roman</option>
+                        <option value="Courier">Courier</option>
+                    </select>
+                    <label>Color:</label>
+                    <input type="color" id="type-modal-color" value="#000000">
+                </div>
                 <button id="pdf-preview-close" class="icon-btn preview-close-btn" aria-label="Close preview">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
@@ -239,7 +235,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <script type="module" src="script.js"></script>
+    <script type="module" src="script.js?v=2"></script>
 </body>
 
 </html>

@@ -157,7 +157,7 @@ export async function addTextToPDF(file, typeData) {
         // PDF drawText (x, y) is the bottom-left corner of the first character (baseline)
         // HTML click y is approximately the top of the text
         const x = item.x * scaleX;
-        const y = height - (item.y * scaleY) - (fontSize * 0.75); // Shift down to match visual top-alignment
+        const y = height - (item.y * scaleY) - fontSize;
 
         // Color handling (Hex to RGB 0-1)
         const hex = item.color || '#000000';

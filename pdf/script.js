@@ -1,6 +1,6 @@
 import { mergePDFPages, splitPDF, addTextToPDF } from './modules/pdf_ops.js';
 import { applyRedactions } from './modules/redact.js';
-import { updateFileList, getFiles, clearFiles, getMergeSelection, getRedactionData, clearRedactionAreas, setLoadingState, setUIMode, updateSplitSelectionFromInput, getTypeData, clearTypeData } from './modules/ui.js';
+import { updateFileList, getFiles, clearFiles, getMergeSelection, getRedactionData, clearRedactionAreas, setLoadingState, setUIMode, updateSplitSelectionFromInput, getTypeData, clearTypeData } from './modules/ui.js?v=2';
 
 document.addEventListener('DOMContentLoaded', () => {
     if (window.pdfjsLib) {
@@ -158,7 +158,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
-    const setTool = (toolName) => {
+    const setTool = (toolName, skipHashUpdate = false) => {
         if (!toolConfig[toolName] || toolName === currentTool) return;
         if (filesLoading) {
             alert('Please wait until files finish loading.');
@@ -175,7 +175,32 @@ document.addEventListener('DOMContentLoaded', () => {
         clearFiles();
         splitRangesInput.value = '';
         applyToolUI();
+        
+        // Update URL hash when tool changes (unless we're initializing from hash)
+        if (!skipHashUpdate) {
+            window.location.hash = toolName;
+        }
     };
+    
+    // Initialize tool from URL hash
+    const initFromHash = () => {
+        const hash = window.location.hash.slice(1); // Remove #
+        const validTools = ['merge', 'split', 'type', 'redact', 'ocr'];
+        const toolName = validTools.includes(hash) ? hash : 'merge';
+        setTool(toolName, true); // Skip hash update to avoid loop
+    };
+    
+    // Listen for hash changes (browser back/forward)
+    window.addEventListener('hashchange', () => {
+        const hash = window.location.hash.slice(1);
+        const validTools = ['merge', 'split', 'type', 'redact', 'ocr'];
+        if (validTools.includes(hash) && hash !== currentTool) {
+            setTool(hash, true);
+        }
+    });
+    
+    // Initialize from hash on page load
+    initFromHash();
 
     toolButtons.forEach((btn) => {
         btn.addEventListener('click', () => setTool(btn.dataset.tool));

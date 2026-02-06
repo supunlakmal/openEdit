@@ -1037,3 +1037,85 @@ body {
 .text-object:hover .text-object-delete, .text-object:focus .text-object-delete {
     opacity: 1;
 }
+
+/* Type Modal Toolbar */
+.type-modal-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+    margin-right: 16px;
+    padding: 6px 12px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+}
+
+.type-modal-toolbar label {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.type-modal-toolbar input[type="number"] {
+    width: 55px;
+    padding: 4px 6px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 0.85rem;
+}
+
+.type-modal-toolbar select {
+    padding: 4px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+
+.type-modal-toolbar input[type="color"] {
+    width: 32px;
+    height: 28px;
+    padding: 0;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    background: transparent;
+}
+
+.type-modal-toolbar input:focus,
+.type-modal-toolbar select:focus {
+    outline: none;
+    border-color: var(--accent-color);
+}
+
+/* Selected Text Object */
+.text-object-selected {
+    border: 2px solid var(--accent-color) !important;
+    background: rgba(238, 43, 43, 0.1) !important;
+    box-shadow: 0 0 0 2px rgba(238, 43, 43, 0.2);
+}
+
+/* Mobile responsive layout for toolbar */
+@media (max-width: 768px) {
+    .type-modal-toolbar {
+        flex-wrap: wrap;
+        gap: 6px;
+        padding: 8px;
+        margin-right: 8px;
+    }
+
+    .type-modal-toolbar label {
+        font-size: 0.75rem;
+    }
+
+    .type-modal-toolbar input[type="number"] {
+        width: 50px;
+    }
+}

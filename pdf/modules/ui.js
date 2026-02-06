@@ -8,6 +8,10 @@ let currentTypeSettings = { size: 12, color: '#000000', font: 'Helvetica' };
 let dragPageIndex = null;
 let fileIdCounter = 0;
 
+// Selection state for text editing in modal
+let selectedTextItem = null;     // Reference to the data object in typePages
+let selectedTextElement = null;  // Reference to the DOM element
+
 const fileListEl = document.getElementById('file-list');
 const actionBarEl = document.getElementById('action-bar');
 const dropzoneEl = document.getElementById('dropzone');
@@ -110,6 +114,9 @@ function closePdfPreviewModal() {
     previewRenderToken += 1;
     previewFileId = null;
 
+    // Clear selection state when closing modal
+    deselectTextItem();
+
     if (pdfPreviewModalEl) {
         pdfPreviewModalEl.classList.add('hidden');
     }
@@ -117,17 +124,161 @@ function closePdfPreviewModal() {
         pdfPreviewPagesEl.innerHTML = '';
     }
 
+    // Hide the modal toolbar
+    const modalToolbar = document.getElementById('type-modal-toolbar');
+    if (modalToolbar) {
+        modalToolbar.classList.add('hidden');
+    }
+
     // Respect split modal lock if it is already open.
     const splitModalOpen = document.getElementById('split-download-modal')?.classList.contains('hidden') === false;
     if (!splitModalOpen) {
         document.body.classList.remove('modal-open');
     }
-    
-    // Refresh UI if in redact mode to show changes made in modal
+
+    // Refresh UI if in redact or type mode to show changes made in modal
     if (currentMode === 'redact') {
         render();
         updateRedactCount();
+    } else if (currentMode === 'type') {
+        render();
     }
+}
+
+// Select a text item and sync the modal toolbar
+function selectTextItem(item, element) {
+    // Deselect previous if any
+    deselectTextItem();
+
+    selectedTextItem = item;
+    selectedTextElement = element;
+
+    // Add visual selection indicator
+    if (element) {
+        element.classList.add('text-object-selected');
+    }
+
+    // Sync the modal toolbar with this item's properties
+    syncModalToolbarWithItem(item);
+}
+
+// Deselect the current text item
+function deselectTextItem() {
+    if (selectedTextElement) {
+        selectedTextElement.classList.remove('text-object-selected');
+    }
+    selectedTextItem = null;
+    selectedTextElement = null;
+}
+
+// Populate modal toolbar controls from the selected item
+function syncModalToolbarWithItem(item) {
+    if (!item) return;
+
+    const sizeInput = document.getElementById('type-modal-size');
+    const fontSelect = document.getElementById('type-modal-font');
+    const colorInput = document.getElementById('type-modal-color');
+
+    if (sizeInput) sizeInput.value = item.size || 12;
+    if (fontSelect) fontSelect.value = item.font || 'Helvetica';
+    if (colorInput) colorInput.value = item.color || '#000000';
+}
+
+// Apply changes from toolbar to the DOM element
+function updateTextElementAppearance(element, item, canvasScale = 1) {
+    if (!element || !item) return;
+
+    // Update font size
+    const fontSize = Math.max(8, item.size * canvasScale);
+    element.style.fontSize = `${fontSize}px`;
+
+    // Update color
+    element.style.color = item.color;
+
+    // Update font family
+    if (item.font === 'Times-Roman') fontFamily = '"Times New Roman", serif';
+    else if (item.font === 'Courier') fontFamily = '"Courier New", monospace';
+    element.style.fontFamily = fontFamily;
+}
+
+// Handle toolbar changes (declared at module scope for reuse)
+function handleModalToolbarChange() {
+    if (!selectedTextItem || !selectedTextElement) return;
+
+    const sizeInput = document.getElementById('type-modal-size');
+    const fontSelect = document.getElementById('type-modal-font');
+    const colorInput = document.getElementById('type-modal-color');
+
+    // Update the data item
+    if (sizeInput) selectedTextItem.size = parseInt(sizeInput.value, 10) || 12;
+    if (fontSelect) selectedTextItem.font = fontSelect.value || 'Helvetica';
+    if (colorInput) selectedTextItem.color = colorInput.value || '#000000';
+
+    // Calculate scale factor (stored on the element during creation)
+    const scaleX = selectedTextElement.dataset.scaleX ? parseFloat(selectedTextElement.dataset.scaleX) : 1;
+
+    // Update the DOM element appearance
+    updateTextElementAppearance(selectedTextElement, selectedTextItem, scaleX);
+}
+
+function ensureModalToolbar() {
+    let toolbar = document.getElementById('type-modal-toolbar');
+    
+    // If not found, create it dynamically (fixes caching issues)
+    if (!toolbar) {
+        toolbar = document.createElement('div');
+        toolbar.id = 'type-modal-toolbar';
+        toolbar.className = 'type-modal-toolbar hidden';
+        toolbar.innerHTML = `
+            <label>Size:</label>
+            <input type="number" id="type-modal-size" value="12" min="8" max="72">
+            <label>Font:</label>
+            <select id="type-modal-font">
+                <option value="Helvetica">Helvetica</option>
+                <option value="Times-Roman">Times Roman</option>
+                <option value="Courier">Courier</option>
+            </select>
+            <label>Color:</label>
+            <input type="color" id="type-modal-color" value="#000000">
+        `;
+        
+        const header = document.querySelector('.preview-modal-header');
+        if (header) {
+            const closeBtn = document.getElementById('pdf-preview-close');
+            header.insertBefore(toolbar, closeBtn);
+        }
+    }
+
+    // Ensure listeners are attached (safe to re-add as named function reference is consistent? 
+    // Actually, 'change' events stack if we aren't careful, but creating fresh elements clears old listeners.
+    // If existing, we might double-bind. Let's check a flag or just rely on 'input' mostly.)
+    // Better approach: Re-query inputs and add listeners. Use a weakmap or property to avoid duplicates if needed, 
+    // but for now, we assume this runs when we open modal or setup.
+    
+    const sizeInput = document.getElementById('type-modal-size');
+    const fontSelect = document.getElementById('type-modal-font');
+    const colorInput = document.getElementById('type-modal-color');
+
+    // Remove old listeners to be safe (requires reference, but we are using fresh function reference each time if not careful).
+    // Since handleModalToolbarChange is constant, we can remove/add.
+    if (sizeInput) {
+        sizeInput.removeEventListener('change', handleModalToolbarChange);
+        sizeInput.removeEventListener('input', handleModalToolbarChange);
+        sizeInput.addEventListener('change', handleModalToolbarChange);
+        sizeInput.addEventListener('input', handleModalToolbarChange);
+    }
+    if (fontSelect) {
+        fontSelect.removeEventListener('change', handleModalToolbarChange);
+        fontSelect.addEventListener('change', handleModalToolbarChange);
+    }
+    if (colorInput) {
+        colorInput.removeEventListener('change', handleModalToolbarChange);
+        colorInput.removeEventListener('input', handleModalToolbarChange);
+        colorInput.addEventListener('change', handleModalToolbarChange);
+        colorInput.addEventListener('input', handleModalToolbarChange);
+    }
+
+    return toolbar;
 }
 
 function renderPreviewFromCache(file) {
@@ -184,6 +335,20 @@ async function openPdfPreviewModal(file, targetPageNumber = null) {
     setPreviewLoading(true, 'Loading preview...');
     pdfPreviewModalEl.classList.remove('hidden');
     document.body.classList.add('modal-open');
+
+    // Show/hide the modal toolbar based on current mode
+    // Show/hide the modal toolbar based on current mode
+    const modalToolbar = ensureModalToolbar();
+    if (modalToolbar) {
+        if (currentMode === 'type') {
+            modalToolbar.classList.remove('hidden');
+        } else {
+            modalToolbar.classList.add('hidden');
+        }
+    }
+
+    // Clear any previous selection
+    deselectTextItem();
 
     if (!window.pdfjsLib || !file?.bytes) {
         renderPreviewFromCache(file);
@@ -399,68 +564,65 @@ async function openPdfPreviewModal(file, targetPageNumber = null) {
                          el.contentEditable = true;
                          el.textContent = item.text || '\u200B';
                          el.style.color = item.color;
-                         // Scale font size based on current view/canvas ratio if needed, but here we work in pixel space of this canvas
-                         // Note: We stored items relative to canvasWidth/Height when created
-                         // So we need to scale if the current canvas dimension differs from creation time? 
-                         // For simplicity, let's assume we update coords or use percentage or standard rendering.
-                         // Current approach: Items store absolute coords for THIS canvas size. 
-                         // But if we resize window? Preview re-renders. We should probably store relative coords or re-scale.
-                         // Let's implement scaling:
-                         
+
                          let scaleX = 1, scaleY = 1;
                          if (item.canvasWidth && item.canvasHeight) {
                              scaleX = canvas.width / item.canvasWidth;
                              scaleY = canvas.height / item.canvasHeight;
                          }
 
+                         // Store scale factor on element for toolbar updates
+                         el.dataset.scaleX = scaleX;
+                         el.dataset.scaleY = scaleY;
+
                          const fontSize = Math.max(8, item.size * scaleX);
                          el.style.fontSize = `${fontSize}px`;
-                         
+
                          // Font mapping
                          let fontFamily = 'Arial, sans-serif';
                          if (item.font === 'Times-Roman') fontFamily = '"Times New Roman", serif';
                          else if (item.font === 'Courier') fontFamily = '"Courier New", monospace';
-                         
+
                          el.style.fontFamily = fontFamily;
                          el.style.left = `${item.x * scaleX}px`;
                          el.style.top = `${item.y * scaleY}px`;
-                         
+
                          // Dragging logic
                          let isDragging = false;
                          let offset = { x: 0, y: 0 };
-                         
+
                          el.addEventListener('mousedown', (e) => {
                              if (e.target !== el) return; // Don't drag if clicking children (like delete btn)
                              isDragging = true;
                              const rect = el.getBoundingClientRect();
-                             const parentRect = overlay.getBoundingClientRect();
                              offset = {
                                  x: e.clientX - rect.left,
                                  y: e.clientY - rect.top
                              };
                              e.stopPropagation(); // Prevent creation of new text
+
+                             // Select this text item for editing
+                             selectTextItem(item, el);
                          });
-                         
+
                          document.addEventListener('mousemove', (e) => {
                              if (!isDragging) return;
                              const parentRect = overlay.getBoundingClientRect();
                              const newX = e.clientX - parentRect.left - offset.x;
                              const newY = e.clientY - parentRect.top - offset.y;
-                             
+
                              el.style.left = `${newX}px`;
                              el.style.top = `${newY}px`;
                          });
-                         
+
                          document.addEventListener('mouseup', () => {
                              if (isDragging) {
                                  isDragging = false;
                                  // Update item position in data
-                                 // Store back in original scale relative to current canvas
-                                 // Or better: update base coords to match current canvas and update canvas reference
                                  item.x = parseFloat(el.style.left) / scaleX;
                                  item.y = parseFloat(el.style.top) / scaleY;
-                                 item.text = el.textContent; // Update text just in case
-                                 item.canvasWidth = canvas.width / scaleX; // Keep reference consistent?
+                                 item.text = el.textContent;
+                                 item.canvasWidth = canvas.width / scaleX;
                                  item.canvasHeight = canvas.height / scaleY;
                              }
                          });
@@ -479,15 +641,22 @@ async function openPdfPreviewModal(file, targetPageNumber = null) {
                              const safeText = textContent.replace(/\u200B/g, '');
                              item.text = safeText;
                              if (!item.text.trim()) {
+                                 // Clear selection if this was selected
+                                 if (selectedTextElement === el) {
+                                     deselectTextItem();
+                                 }
                                  typePage.items.splice(index, 1);
                                  if (overlay.contains(el)) {
                                      overlay.removeChild(el);
                                  }
                              }
                          });
-                         
-                         // Focus listener - ensure zero-width space for empty fields
+
+                         // Focus listener - select and ensure zero-width space for empty fields
                          el.addEventListener('focus', () => {
+                             // Select this item when focused
+                             selectTextItem(item, el);
+
                              if (el.innerText === '' || el.innerText === '\u200B') {
                                  el.innerText = '\u200B';
                                  // Move cursor to end
@@ -499,21 +668,25 @@ async function openPdfPreviewModal(file, targetPageNumber = null) {
                                  sel.addRange(range);
                              }
                          });
-                         
+
                          // Delete button - simple red dot
                          const delBtn = document.createElement('div');
                          delBtn.className = 'text-object-delete';
                          delBtn.contentEditable = false;
                          delBtn.addEventListener('click', (e) => {
                              e.stopPropagation();
+                             // Clear selection if this was selected
+                             if (selectedTextElement === el) {
+                                 deselectTextItem();
+                             }
                              typePage.items.splice(index, 1);
                              overlay.removeChild(el);
                          });
-                         
+
                          el.appendChild(delBtn);
                          return el;
                      };
-                     
+
                      // Render existing items
                      const renderItems = () => {
                          overlay.innerHTML = '';
@@ -522,15 +695,18 @@ async function openPdfPreviewModal(file, targetPageNumber = null) {
                          });
                      };
                      renderItems();
-                     
-                     // Add new text on click
+
+                     // Add new text on click (deselect first if clicking empty area)
                      overlay.addEventListener('click', (e) => {
                          if (e.target !== overlay) return;
-                         
+
+                         // Deselect any previously selected item
+                         deselectTextItem();
+
                          const rect = overlay.getBoundingClientRect();
                          const x = e.clientX - rect.left;
                          const y = e.clientY - rect.top;
-                         
+
                          const newItem = {
                              x: x,
                              y: y - (currentTypeSettings.size), // Adjust so click is baselineish
@@ -541,14 +717,15 @@ async function openPdfPreviewModal(file, targetPageNumber = null) {
                              canvasWidth: canvas.width,
                              canvasHeight: canvas.height
                          };
-                         
+
                          typePage.items.push(newItem);
                          const el = createTextDOM(newItem, typePage.items.length - 1);
                          overlay.appendChild(el);
-                         
-                         // Focus and select text
+
+                         // Focus, select text, and select the item
                          setTimeout(() => {
                              el.focus();
+                             selectTextItem(newItem, el);
                              const range = document.createRange();
                              range.selectNodeContents(el);
                              const sel = window.getSelection();
@@ -1507,39 +1684,23 @@ export function clearTypeData() {
     render();
 }
 
-function updateTypeSettings() {
-    const sizeInput = document.getElementById('type-text-size');
-    const colorInput = document.getElementById('type-text-color');
-    const fontInput = document.getElementById('type-text-font');
-    
-    if (sizeInput) currentTypeSettings.size = parseInt(sizeInput.value, 10) || 12;
-    if (colorInput) currentTypeSettings.color = colorInput.value || '#000000';
-    if (fontInput) currentTypeSettings.font = fontInput.value || 'Helvetica';
-}
-
 // Initialize listeners for type settings
 document.addEventListener('DOMContentLoaded', () => {
-    const sizeInput = document.getElementById('type-text-size');
-    const colorInput = document.getElementById('type-text-color');
-    const fontInput = document.getElementById('type-text-font');
-    const clearBtn = document.getElementById('type-clear-btn');
-    
-    if (sizeInput) {
-        sizeInput.addEventListener('change', updateTypeSettings);
-        sizeInput.addEventListener('input', updateTypeSettings);
+
+    // Modal toolbar event listeners for editing selected text
+    const modalSizeInput = document.getElementById('type-modal-size');
+    const modalFontSelect = document.getElementById('type-modal-font');
+    const modalColorInput = document.getElementById('type-modal-color');
+
+    if (modalSizeInput) {
+        modalSizeInput.addEventListener('change', handleModalToolbarChange);
+        modalSizeInput.addEventListener('input', handleModalToolbarChange);
     }
-    if (colorInput) {
-        colorInput.addEventListener('change', updateTypeSettings);
-        colorInput.addEventListener('input', updateTypeSettings);
+    if (modalFontSelect) {
+        modalFontSelect.addEventListener('change', handleModalToolbarChange);
     }
-    if (fontInput) {
-        fontInput.addEventListener('change', updateTypeSettings);
-    }
-    if (clearBtn) {
-        clearBtn.addEventListener('click', () => {
-             if (confirm('Clear all text from pages?')) {
-                 clearTypeData();
-             }
-        });
+    if (modalColorInput) {
+        modalColorInput.addEventListener('change', handleModalToolbarChange);
+        modalColorInput.addEventListener('input', handleModalToolbarChange);
     }
 });
